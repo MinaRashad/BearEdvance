@@ -8,24 +8,14 @@ import numpy as np
 import requests
 import json
 import re
-import PIL
+from PIL import Image, ImageDraw, ImageFont
 
 print('initializing..')
 AUDIO_PATH = '/audio/'
 SLIDE_PATH = '/slides/'
 GAIN_FACTOR = 3
 # first argument is the txt file with the transcript
-transcript = sys.argv[1]
-
-transcript_str = ''
-
-try:
-    with open(transcript, 'r') as file:
-        transcript_str = file.read()
-except Exception as e:
-    print('Error reading file: ', e)
-
-
+topic = sys.argv[1]
 
 # audio synthesis
 synthesiser = pipeline("text-to-speech", "microsoft/speecht5_tts")
@@ -159,7 +149,7 @@ def covert_trascript_to_audio(slides_JSON):
 def generate_slides(slides_JSON):
     """
     using the title from the JSON, we will generate an image with that title
-    black monospace text on white background
+    black text on white background
     """
     slide_path = os.getcwd() + SLIDE_PATH
 
@@ -171,27 +161,97 @@ def generate_slides(slides_JSON):
         title = slide['title']
         slide_num = slide['slide']
 
+        FONT_SIZE = 60
+        SLIDE_HEIGHT = 600
+        SLIDE_WIDTH = 800
+
         # create an image with the title
-        img = PIL.Image.new('RGB', (800, 600), color = 'white')
+        img = Image.new('RGB', (SLIDE_WIDTH, SLIDE_WIDTH), color = 'white')
 
-        fnt = PIL.ImageFont.load_default()
-        d = PIL.ImageDraw.Draw(img)
-        d.text((10,10), title, font=fnt, fill=(0,0,0))
+        # draw big text in the middle
+        fnt = ImageFont.truetype('./fonts/times new roman bold.ttf', FONT_SIZE)
+        
+        d = ImageDraw.Draw(img)
+        
 
+        text_width, text_height = d.textlength(title, font=fnt), FONT_SIZE
+
+        # if the title is too long, cut it
+        cut_title = ""
+        if text_width > SLIDE_WIDTH:
+            while text_width > SLIDE_WIDTH:
+                # add last word to the cut_title
+                last_word = title.split()[-1]
+                title = title[:-len(last_word)]
+                cut_title = last_word + cut_title
+
+                text_width, text_height = d.textlength(title, font=fnt), FONT_SIZE
+        
+
+
+        d.text(((SLIDE_WIDTH - text_width)/2,(SLIDE_HEIGHT-text_height)/2), title, font=fnt, fill='black')
+        d.text(((SLIDE_WIDTH - text_width)/2,(SLIDE_HEIGHT+text_height)/2 +FONT_SIZE+10), cut_title, font=fnt, fill='black')
+        
         img.save(slide_path+ 'slide_' + str(slide_num) + '.png')
 
     print('All slides have been generated')
+
+def generate_transcript(topic):
+    prompt = f"""
+You are an experienced programmer and presenter. You are giving a presentation about {topic}.
+You have to generate a transcript for the presentation. The transcript should be clear and concise.
+Assume your audience is highschool students. Do not exceed 10 slides but it can be lower. 
+Each slide must have at least 8 sentences. Make the presentation style engaging by asking rhetorical questions and using humor.
+If you use humor, keep it mind it will be read by a text-to-speech engine.
+it should be in the following format:
+
+Slide 1:
+<things to say>
+
+Slide 2:
+<things to say>
+"""
+
+    endpoint =  "https://api.openai.com/v1/chat/completions"
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + OPENAI_API_KEY,
+    }
+
+    data = {
+        "model": "gpt-3.5-turbo",
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    }
+
+    response = requests.post(endpoint, json=data, headers=headers)
+    response_data = response.json()
+    transcript = response_data['choices'][0]['message']['content']
+
+    return transcript
 
 
 def main():
     print('starting')
 
-    slides_JSON = get_JSON_from_transcript(transcript_str)
+    print(f'Generating transcript for presentation about {topic}...')
 
-    covert_trascript_to_audio(slides_JSON)
+    transcript = generate_transcript(topic)
+
+    slides_JSON = get_JSON_from_transcript(transcript)
 
     generate_slides(slides_JSON)
+
+
+    covert_trascript_to_audio(slides_JSON)
 
     exit(0)
 
 
+if __name__ == '__main__':
+    main()
