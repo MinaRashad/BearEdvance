@@ -201,7 +201,7 @@ def generate_transcript(topic):
     prompt = f"""
 You are an experienced programmer and presenter. You are giving a presentation about {topic}.
 You have to generate a transcript for the presentation. The transcript should be clear and concise.
-Assume your audience is highschool students. Do not exceed 10 slides but at least 5 slides. 
+Assume your audience is highschool students.  
 Each slide must have at least 8 sentences. Make the presentation style engaging by asking rhetorical questions and using humor.
 If you use humor, keep it mind it will be read by a text-to-speech engine.
 it should be in the following format:
@@ -211,6 +211,8 @@ Slide 1:
 
 Slide 2:
 <things to say>
+
+Create at least 5 slides. but no more than 10 slides. and DO NOT USE ANY ABBREVIATIONS.
 """
 
     endpoint =  "https://api.openai.com/v1/chat/completions"
@@ -353,6 +355,9 @@ def reset():
     merged_files = os.listdir(os.getcwd() + AUDIO_PATH + 'merged/')
     for file in merged_files:
         os.remove(os.getcwd()+AUDIO_PATH+'merged/'+file)
+
+    # remove directory
+    os.rmdir(os.getcwd() + AUDIO_PATH + 'merged/')
 
     # remove the video files
     video_files = os.listdir(os.getcwd() + '/video/')
