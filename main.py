@@ -9,6 +9,7 @@ import requests
 import json
 import re
 from PIL import Image, ImageDraw, ImageFont
+import wave
 
 print('initializing..')
 AUDIO_PATH = '/audio/'
@@ -235,20 +236,65 @@ Slide 2:
 
     return transcript
 
+def merge_audio_files():
+    """
+    merge all the audio files into one for each slide
+    """
+    print('Merging audio files...')
+    # get the audio files
+    audio_files = os.listdir(os.getcwd() + AUDIO_PATH)
+    audio_files = sorted(audio_files)
+
+    print(audio_files)
+    slides = {}
+    for file in audio_files:
+        slide_name = file.split('_')[0]
+
+        if slide_name not in slides:
+            slides[slide_name] = []
+        
+        audio = wave.open(os.getcwd() + AUDIO_PATH + file, 'rb')
+        # get the audio data
+        audio_params = audio.getparams()
+        audio_data = audio.readframes(audio.getnframes())
+
+        slides[slide_name].append((audio_params,audio_data))
+        audio.close()
+    
+    # if merged folder does not exist, create it
+    if not os.path.exists(os.getcwd() + AUDIO_PATH + 'merged/'):
+        os.makedirs(os.getcwd() + AUDIO_PATH + 'merged/')
+
+    # create a new audio file for each slide
+    for slide in slides:
+        audio_data = slides[slide]
+        new_audio = wave.open(os.getcwd() + AUDIO_PATH +'merged/'+ slide + '.wav', 'wb')
+        
+        new_audio.setparams(audio_data[0][0])
+        for data in audio_data:
+            new_audio.writeframes(data[1])
+        
+        new_audio.close()
+
+    print('All audio files have been merged')
+
+
 
 def main():
     print('starting')
 
     print(f'Generating transcript for presentation about {topic}...')
 
-    transcript = generate_transcript(topic)
+    #transcript = generate_transcript(topic)
 
-    slides_JSON = get_JSON_from_transcript(transcript)
+    #slides_JSON = get_JSON_from_transcript(transcript)
 
-    generate_slides(slides_JSON)
+    #generate_slides(slides_JSON)
 
 
-    covert_trascript_to_audio(slides_JSON)
+    #covert_trascript_to_audio(slides_JSON)
+
+    merge_audio_files()
 
     exit(0)
 
