@@ -201,7 +201,7 @@ def generate_transcript(topic):
     prompt = f"""
 You are an experienced programmer and presenter. You are giving a presentation about {topic}.
 You have to generate a transcript for the presentation. The transcript should be clear and concise.
-Assume your audience is highschool students. Do not exceed 10 slides but it can be lower. 
+Assume your audience is highschool students. Do not exceed 10 slides but at least 5 slides. 
 Each slide must have at least 8 sentences. Make the presentation style engaging by asking rhetorical questions and using humor.
 If you use humor, keep it mind it will be read by a text-to-speech engine.
 it should be in the following format:
@@ -278,24 +278,110 @@ def merge_audio_files():
 
     print('All audio files have been merged')
 
+def generate_video():
+    """
+    generate a video from the slides and audio
+    using the merged audio files, and slides, we can create a simple video
+    """
+    print('Generating video...')
+    # get the audio files
+    audio_files = os.listdir(os.getcwd() + AUDIO_PATH + 'merged/')
+    audio_files = sorted(audio_files)
 
+    # get the slides
+    slide_files = os.listdir(os.getcwd() + SLIDE_PATH)
+    slide_files = sorted(slide_files)
+
+    # create video in the video folder
+    if not os.path.exists(os.getcwd() + '/video/'):
+        os.makedirs(os.getcwd() + '/video/')
+    
+    video_files = []
+    # create a video for each slide
+    for i, slide in enumerate(slide_files):
+        print(f'Creating video for slide {i+1}/{len(slide_files)}', end='\r')
+        slide_path = os.getcwd() + SLIDE_PATH + slide
+        audio_path = os.getcwd() + AUDIO_PATH + 'merged/' + audio_files[i]
+        video_path = os.getcwd() + '/video/' + slide.split('.')[0] + '.mp4'
+        
+
+        # escape the spaces in the path
+        slide_path = slide_path.replace(' ', '\\ ')
+        audio_path = audio_path.replace(' ', '\\ ')
+        video_path = video_path.replace(' ', '\\ ')
+
+        video_files.append(video_path)
+
+
+        command = f'ffmpeg -loop 1 -i {slide_path} -i {audio_path} -shortest {video_path}'
+
+        os.system(command)
+
+    # create a list of videos to merge
+    video_list = ''
+    for video in video_files:
+        video_list += 'file ' + video + '\n'
+
+    with open(os.getcwd() + '/video/'+'video_list.txt', 'w') as file:
+        file.write(video_list)
+    
+    video_list_path = os.getcwd() + '/video/'+'video_list.txt'
+    final_video_path = os.getcwd() + '/presentation.mp4'
+    
+    video_list_path = video_list_path.replace(' ', '\\ ')
+    final_video_path = final_video_path.replace(' ', '\\ ')
+
+    command = f'ffmpeg -f concat -safe 0 -i {video_list_path} -c copy {final_video_path}'
+    os.system(command)
+
+def reset():
+    print('Cleaning up...')
+    # remove the audio files
+    audio_files = os.listdir(os.getcwd() + AUDIO_PATH)
+    for file in audio_files:
+        path = os.getcwd() + AUDIO_PATH + file
+        # if it is not a folder
+        if not os.path.isdir(path):
+            os.remove(path)
+    
+    # remove the slides
+    slide_files = os.listdir(os.getcwd() + SLIDE_PATH)
+    for file in slide_files:
+        os.remove(os.getcwd()+SLIDE_PATH+file)
+    
+    # remove the merged audio files
+    merged_files = os.listdir(os.getcwd() + AUDIO_PATH + 'merged/')
+    for file in merged_files:
+        os.remove(os.getcwd()+AUDIO_PATH+'merged/'+file)
+
+    # remove the video files
+    video_files = os.listdir(os.getcwd() + '/video/')
+    for file in video_files:
+        os.remove(os.getcwd()+ '/video/' + file)
+
+    print('All files have been removed')
 
 def main():
     print('starting')
 
     print(f'Generating transcript for presentation about {topic}...')
 
-    #transcript = generate_transcript(topic)
+    transcript = generate_transcript(topic)
 
-    #slides_JSON = get_JSON_from_transcript(transcript)
+    slides_JSON = get_JSON_from_transcript(transcript)
 
-    #generate_slides(slides_JSON)
+    generate_slides(slides_JSON)
 
 
-    #covert_trascript_to_audio(slides_JSON)
+    covert_trascript_to_audio(slides_JSON)
 
     merge_audio_files()
 
+    generate_video()
+
+    reset()
+
+    print('All done! Presentation video has been generated')
     exit(0)
 
 
